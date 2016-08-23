@@ -61,10 +61,28 @@ public class Receiver {
         }
     }
 
+    public void receiveNspTopic() {
+        try {
+            factory = new ActiveMQConnectionFactory(Sender.BROKER_URL_INTANCE_B);
+            connection = factory.createConnection();
+            connection = factory.createConnection();
+            connection.start();
+            session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            destinationTopic = session.createTopic(Sender.NSP_TOPIC);
+            NspTopic lConsumerTopic1 = new NspTopic(destinationTopic, "Consumer-Topic-1");
+            Thread lThread1 = new Thread(lConsumerTopic1);
+
+            lThread1.start();
+        } catch (JMSException e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void main(String[] args) {
         Receiver receiver = new Receiver();
         //receiver.receiveMessageQueue();
-        receiver.receiveMessageTopic();
+        //receiver.receiveMessageTopic();
+        receiver.receiveNspTopic();
     }
 
     class ConsumerQueue implements Runnable{
@@ -127,6 +145,47 @@ public class Receiver {
                 Message message = null;
                 try {
                     message = consumer_.receive();
+                    if (message instanceof TextMessage) {
+                        TextMessage text = (TextMessage) message;
+                        System.out.println("Message From :" + consumerName_ +" \t Message is : " + text.getText());
+                        if (text.getText().equals(Sender.END_MESSAGE)){
+                            break;
+                        }
+                    }
+                } catch (JMSException e) {
+                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                }
+            }
+            System.out.println("Exiting the Receive Thread \t"+consumerName_);
+
+            try {
+                consumer_.close();
+            } catch (JMSException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
+        }
+    }
+
+    class NspTopic implements Runnable{
+
+        Destination destination_;
+        String consumerName_;
+        MessageConsumer consumer_;
+
+        NspTopic(Destination aInDestination, String aInConsumerName) throws JMSException {
+            destination_ = aInDestination;
+            consumer_ = session.createConsumer(destination_);
+            consumerName_ = aInConsumerName;
+        }
+
+        @Override
+        public void run() {
+            System.out.println("Starting the Receive Thread \t"+ consumerName_);
+            while (true){
+                Message message = null;
+                try {
+                    message = consumer_.receive();
+                    System.out.println("Received the message");
                     if (message instanceof TextMessage) {
                         TextMessage text = (TextMessage) message;
                         System.out.println("Message From :" + consumerName_ +" \t Message is : " + text.getText());

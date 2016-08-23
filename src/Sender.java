@@ -22,6 +22,7 @@ public class Sender {
     public static final String BROKER_URL_INTANCE_B =  "failover://tcp://localhost:61619";
     public static final String QUEUE_NAME =  "Sunil_queue";
     public static final String TOPIC_NAME =  "Sunil_topic";
+    public static final String NSP_TOPIC =  "arm";
     public static final String END_MESSAGE =  "END";
 
     public Sender() {
