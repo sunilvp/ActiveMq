@@ -13,29 +13,46 @@ public class Receiver {
     private ConnectionFactory factory = null;
     private Connection connection = null;
     private Session session = null;
-    private Destination destination = null;
+    private Destination destinationQueue = null;
+    private Destination destinationTopic = null;
     private MessageConsumer consumer = null;
-
-    private static final String BROKER_URL_INTANCE_A =  "failover://tcp://localhost:61618";
-    private static final String QUEUE_NAME =  "Sunil_queue";
-    public static final String END_MESSAGE =  "END";
 
     public Receiver() {
 
     }
 
-    public void receiveMessage() {
+    public void receiveMessageQueue() {
         try {
-            factory = new ActiveMQConnectionFactory(BROKER_URL_INTANCE_A);
+            factory = new ActiveMQConnectionFactory(Sender.BROKER_URL_INTANCE_B);
             connection = factory.createConnection();
             connection = factory.createConnection();
             connection.start();
             session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
-            destination = session.createQueue(QUEUE_NAME);
-            Consumer lConsumer1 = new Consumer(destination, "Consumer1");
-            Consumer lConsumer2 = new Consumer(destination, "Consumer2");
-            Thread lThread1 = new Thread(lConsumer1);
-            Thread lThread2 = new Thread(lConsumer2);
+            destinationQueue = session.createQueue(Sender.QUEUE_NAME);
+            ConsumerQueue lConsumerQueue1 = new ConsumerQueue(destinationQueue, "Consumer-Queue-1");
+            ConsumerQueue lConsumerQueue2 = new ConsumerQueue(destinationQueue, "Consumer-Queue-2");
+            Thread lThread1 = new Thread(lConsumerQueue1);
+            Thread lThread2 = new Thread(lConsumerQueue2);
+
+            lThread1.start();
+            lThread2.start();
+        } catch (JMSException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void receiveMessageTopic() {
+        try {
+            factory = new ActiveMQConnectionFactory(Sender.BROKER_URL_INTANCE_B);
+            connection = factory.createConnection();
+            connection = factory.createConnection();
+            connection.start();
+            session = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
+            destinationTopic = session.createTopic(Sender.TOPIC_NAME);
+            ConsumerTopic lConsumerTopic1 = new ConsumerTopic(destinationTopic, "Consumer-Topic-1");
+            ConsumerTopic lConsumerTopic2 = new ConsumerTopic(destinationTopic, "Consumer-Topic-2");
+            Thread lThread1 = new Thread(lConsumerTopic1);
+            Thread lThread2 = new Thread(lConsumerTopic2);
 
             lThread1.start();
             lThread2.start();
@@ -46,33 +63,22 @@ public class Receiver {
 
     public static void main(String[] args) {
         Receiver receiver = new Receiver();
-        receiver.receiveMessage();
+        //receiver.receiveMessageQueue();
+        receiver.receiveMessageTopic();
     }
 
-    class Consumer implements Runnable{
-
+    class ConsumerQueue implements Runnable{
 
         Destination destination_;
         String consumerName_;
         MessageConsumer consumer_;
 
-        Consumer(Destination aInDestination, String aInConsumerName) throws JMSException {
+        ConsumerQueue(Destination aInDestination, String aInConsumerName) throws JMSException {
             destination_ = aInDestination;
             consumer_ = session.createConsumer(destination_);
             consumerName_ = aInConsumerName;
         }
 
-        /**
-         * When an object implementing interface <code>Runnable</code> is used
-         * to create a thread, starting the thread causes the object's
-         * <code>run</code> method to be called in that separately executing
-         * thread.
-         * <p/>
-         * The general contract of the method <code>run</code> is that it may
-         * take any action whatsoever.
-         *
-         * @see Thread#run()
-         */
         @Override
         public void run() {
             System.out.println("Starting the Receive Thread \t"+ consumerName_);
@@ -83,7 +89,48 @@ public class Receiver {
                     if (message instanceof TextMessage) {
                         TextMessage text = (TextMessage) message;
                         System.out.println("Message From :" + consumerName_ +" \t Message is : " + text.getText());
-                        if (text.getText().equals(END_MESSAGE)){
+                        if (text.getText().equals(Sender.END_MESSAGE)){
+                            break;
+                        }
+                    }
+                } catch (JMSException e) {
+                    e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+                }
+            }
+            System.out.println("Exiting the Receive Thread \t"+consumerName_);
+
+            try {
+                consumer_.close();
+            } catch (JMSException e) {
+                e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+            }
+        }
+    }
+
+
+    class ConsumerTopic implements Runnable{
+
+        Destination destination_;
+        String consumerName_;
+        MessageConsumer consumer_;
+
+        ConsumerTopic(Destination aInDestination, String aInConsumerName) throws JMSException {
+            destination_ = aInDestination;
+            consumer_ = session.createConsumer(destination_);
+            consumerName_ = aInConsumerName;
+        }
+
+        @Override
+        public void run() {
+            System.out.println("Starting the Receive Thread \t"+ consumerName_);
+            while (true){
+                Message message = null;
+                try {
+                    message = consumer_.receive();
+                    if (message instanceof TextMessage) {
+                        TextMessage text = (TextMessage) message;
+                        System.out.println("Message From :" + consumerName_ +" \t Message is : " + text.getText());
+                        if (text.getText().equals(Sender.END_MESSAGE)){
                             break;
                         }
                     }
